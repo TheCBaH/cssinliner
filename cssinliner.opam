@@ -1,0 +1,16 @@
+opam-version: "1.2"
+authors: [ "Vladimir N. Silyaev" ]  
+license: "ISC"
+homepage: "https://github.com/TheCBaH/cssinliner"
+bug-reports: "https://github.com/TheCBaH/cssinliner/issues"
+dev-repo: "https://github.com/TheCBaH/cssinliner.git"
+build: [
+  ["jbuilder" "subst"] {pinned}
+  ["jbuilder" "build" "-p" name "-j" jobs]
+]
+depends: [
+  "jbuilder" {build & >= "1.0+beta10"}
+  "lambdasoup"
+  "angstrom"
+]
+available: [ ocaml-version >= "4.03.0" ]
