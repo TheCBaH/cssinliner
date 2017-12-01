@@ -3,7 +3,9 @@
 (library
  ((name        cssinliner)
   (public_name cssinliner)
+  (synopsis "Inline CSS in HTML")
   (libraries
     (angstrom
+     str
      lambdasoup))
   ))

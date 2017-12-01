@@ -137,6 +137,8 @@ let add_style styles node =
      set_attribute "style" style node
 
 let re_comawspace = Str.regexp "[\x20\x0d\x0a\x09]*,[\x20\x0d\x0a\x09]*"
+let re_pseudos =
+    ".*\\(" ^ (["hover"; "active"; "focus"; "visited"; "link"] |> List.map (fun s -> ":" ^ s ) |> String.concat "\\|"  ) ^ "\\).*" |> Str.regexp
 
 let apply_style style html =
   let open Soup in
@@ -144,7 +146,11 @@ let apply_style style html =
         `Rule (selector,styles) ->
          Str.split re_comawspace selector
          |> List.iter (fun selector ->
-             html $$ selector |> iter (add_style styles))
+            if not (Str.string_match re_pseudos selector 0) then
+                try
+                 html $$ selector |> iter (add_style styles)
+                with _ -> "Can't handle selector:'" ^ selector ^ "'" |> failwith
+                 )
       | _ -> ()) style;
   html
 
