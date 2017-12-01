@@ -7,9 +7,18 @@
 
 let css_parser =
   let open Angstrom in
-  let wspace =
-    skip_while (function ' ' | '\n' | '\r' | '\t' -> true | _ -> false)
-  in
+  let wspace_raw =
+    skip (function ' ' | '\n' | '\r' | '\t' -> true | _ -> false)
+  and comment =
+    string "/*" *>
+      scan_state `Empty (fun state ch ->
+          match state,ch with
+            `Empty,'*' -> Some `Star
+          | `Star,'/' -> Some `Done
+          | `Done,_ -> None
+          | _,'*' -> Some `Star
+          | _ -> Some `Empty) >>| ignore in
+  let wspace = skip_many (wspace_raw <|> comment) in
   let raw_block =
     char '{' *> wspace
     *> lift2
