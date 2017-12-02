@@ -1,7 +1,7 @@
 open Cssinliner
 
 let tests =
-  [ (* "yui-reset.html"; comments in CSS *)
+  [ (* "remote_url.html"; remote *)
     "alpha.html"
   ; "cascading.html"
   ; "character-entities.html"
@@ -9,7 +9,6 @@ let tests =
   ; "direct-descendents.html"
   ; "direct-descendents.html"
   ; "font-quotes.html"
-  ; "table-attr.html"
   ; "id.html"
   ; "identical-important.html"
   ; "ignore-pseudos.html"
@@ -18,19 +17,20 @@ let tests =
   ; "malformed.html"
   ; "media.html"
   ; "no_css.html"
-  ; (* "normalize.html";  comments in CSS *)
-    "preserve-events.html"
+  ; "normalize.html"
+  ; "preserve-events.html"
   ; "regression-media.html"
   ; "regression-selector-newline.html"
-  ; (* "remote_url.html"; remote *)
-    "remove-html-selectors.html"
+  ; "remove-html-selectors.html"
   ; "spaces_in_path.html"
   ; "specificity.html"
   ; "style-preservation.html"
+  ; "table-attr.html"
   ; "tag.html"
   ; "two_styles.html"
   ; "width-attr.html"
-  ; "xhtml.html" ]
+  ; "xhtml.html"
+  ; "yui-reset.html" ]
 
 
 let tests_no_clean = ["class+id.html"; "class.html"]

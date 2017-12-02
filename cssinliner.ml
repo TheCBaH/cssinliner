@@ -10,14 +10,16 @@ let css_parser =
   let wspace_raw =
     skip (function ' ' | '\n' | '\r' | '\t' -> true | _ -> false)
   and comment =
-    string "/*" *>
-      scan_state `Empty (fun state ch ->
-          match state,ch with
-            `Empty,'*' -> Some `Star
-          | `Star,'/' -> Some `Done
-          | `Done,_ -> None
-          | _,'*' -> Some `Star
-          | _ -> Some `Empty) >>| ignore in
+    string "/*"
+    *> scan_state `Empty (fun state ch ->
+           match (state, ch) with
+           | `Empty, '*' -> Some `Star
+           | `Star, '/' -> Some `Done
+           | `Done, _ -> None
+           | _, '*' -> Some `Star
+           | _ -> Some `Empty )
+    >>| ignore
+  in
   let wspace = skip_many (wspace_raw <|> comment) in
   let raw_block =
     char '{' *> wspace
@@ -49,9 +51,11 @@ let css_parser =
          ( lift (fun b -> `Block (skip_trailwspace b)) raw_block
          <|> lift (fun l -> `Line l) semicolon_line )
   in
-  let selector =
-    wspace *> take_while (function '{' | ';' | '}' -> false | _ -> true)
+  let rule =
+    wspace *> take_while (function ',' | '{' | ';' | '}' -> false | _ -> true)
   in
+  let rules = sep_by1 (char ',' *> wspace) rule in
+  let selector = wspace *> rules in
   let re_colummn = Str.regexp ":[ \r\n\t]*" in
   let split_style str =
     (* Str.bounded_split re_colummn str 2 *)
@@ -61,8 +65,7 @@ let css_parser =
   in
   let rule =
     lift2
-      (fun selector block ->
-        `Rule (skip_trailwspace selector, List.map split_style block))
+      (fun selector block -> `Rule (selector, List.map split_style block))
       selector block
   in
   many (at_rule <|> rule)
@@ -151,8 +154,6 @@ let add_style styles node =
       set_attribute "style" style node
 
 
-let re_comawspace = Str.regexp "[ \r\n\t]*,[ \r\n\t]*"
-
 let re_pseudos =
   ".*\\("
   ^ ( ["hover"; "active"; "focus"; "visited"; "link"]
@@ -161,17 +162,23 @@ let re_pseudos =
   |> Str.regexp
 
 
+let re_special = Str.regexp ".*::-"
+
 let apply_style style html =
   let open Soup in
   List.iter
     (function
         | `Rule (selector, styles) ->
-            Str.split re_comawspace selector
+            selector
             |> List.iter (fun selector ->
-                   if not (Str.string_match re_pseudos selector 0) then
+                   if not
+                        ( Str.string_match re_pseudos selector 0
+                        || Str.string_match re_special selector 0 )
+                   then
                      try html $$ selector |> iter (add_style styles)
                      with _ ->
-                       "Can't handle selector:'" ^ selector ^ "'" |> failwith )
+                       "Can't handle selector:'" ^ selector ^ "'"
+                       |> prerr_endline )
         | _ -> ())
     style ;
   html
