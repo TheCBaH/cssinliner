@@ -164,7 +164,7 @@ let re_pseudos =
 
 let re_special = Str.regexp ".*::-"
 
-let apply_style style html =
+let apply_style ~verbose style html =
   let open Soup in
   List.iter
     (function
@@ -177,8 +177,10 @@ let apply_style style html =
                    then
                      try html $$ selector |> iter (add_style styles)
                      with _ ->
-                       "Can't handle selector:'" ^ selector ^ "'"
-                       |> prerr_endline )
+                       "Can't handle selector: '" ^ selector ^ "'"
+                       |> prerr_endline
+                   else if verbose then "Skipping selector: '" ^ selector ^ "'"
+                     |> print_endline )
         | _ -> ())
     style ;
   html
@@ -193,7 +195,8 @@ let clean state html =
   html
 
 
-let inline_css ?(clean_class= true) ?(load= fun _ -> None) html =
+let inline_css ?(verbose= false) ?(clean_class= true) ?(load= fun _ -> None)
+    html =
   let open Soup in
   let state = {load; clean_class} in
   let html = parse html in
@@ -202,5 +205,5 @@ let inline_css ?(clean_class= true) ?(load= fun _ -> None) html =
   let style = load_external_style state ext_styles style in
   let style = load_internal_style html style in
   (* style *)
-  html |> apply_style style |> clean state |> pretty_print
+  html |> apply_style ~verbose style |> clean state |> pretty_print
 

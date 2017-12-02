@@ -1,8 +1,7 @@
 open Cssinliner
 
 let tests =
-  [ (* "remote_url.html"; remote *)
-    "alpha.html"
+  [ "alpha.html"
   ; "cascading.html"
   ; "character-entities.html"
   ; "css-quotes.html"
@@ -21,6 +20,7 @@ let tests =
   ; "preserve-events.html"
   ; "regression-media.html"
   ; "regression-selector-newline.html"
+  ; "remote_url.html"
   ; "remove-html-selectors.html"
   ; "spaces_in_path.html"
   ; "specificity.html"
@@ -50,9 +50,16 @@ let write_result file str =
 
 let test_one ~clean_class file =
   let open Soup in
-  print_endline file ;
-  let load (_, file) = Some (read_file (src_dir ^ file)) in
-  src_dir ^ file |> read_file |> inline_css ~clean_class ~load
+  "Testing: " ^ file |> print_endline ;
+  let load (_, file) =
+    let uri = Uri.of_string file in
+    match Uri.host uri with
+    | None -> Some (read_file (src_dir ^ file))
+    | Some _ ->
+        "Skipping '" ^ file ^ "'" |> print_endline ;
+        None
+  in
+  src_dir ^ file |> read_file |> inline_css ~verbose:true ~clean_class ~load
   |> write_result file
 
 

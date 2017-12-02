@@ -3,7 +3,10 @@
 (executable
  ((name test)
   (libraries
-    (cssinliner))
+    (
+    cssinliner
+    uri
+    ))
  )
 )
 
