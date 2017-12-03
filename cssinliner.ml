@@ -3,9 +3,9 @@
 #require "angstrom";;
 #require "lambdasoup";;
 #require "str";;
-*)
+ *)
 
-let css_parser =
+let wspace =
   let open Angstrom in
   let wspace_raw =
     skip (function ' ' | '\n' | '\r' | '\t' -> true | _ -> false)
@@ -21,6 +21,11 @@ let css_parser =
     >>| ignore
   in
   let wspace = skip_many (wspace_raw <|> comment) in
+  wspace
+
+
+let css_parser =
+  let open Angstrom in
   let raw_block =
     char '{' *> wspace
     *> lift2
@@ -71,7 +76,24 @@ let css_parser =
   many (at_rule <|> rule)
 
 
-type state = {load: string list * string -> string option; clean_class: bool}
+let import_url =
+  let open Angstrom in
+  let single_quoted_string =
+    char '\'' *> take_while (function '\'' -> false | _ -> true) <* char '\''
+  and double_quoted_string =
+    char '"' *> take_while (function '"' -> false | _ -> true) <* char '"'
+  in
+  let quoted_string = single_quoted_string <|> double_quoted_string in
+  let url_resource =
+    string "url(" *> wspace *> quoted_string <* wspace <* char ')'
+  in
+  wspace *> (quoted_string <|> url_resource)
+
+
+type state =
+  { load: string list * string -> string option
+  ; clean_class: bool
+  ; verbose: bool }
 
 let parse_one_style style str =
   match str with
@@ -82,12 +104,42 @@ let parse_one_style style str =
     | _ -> style
 
 
+let rec parse_style_aux state stack styles payload =
+  match payload with
+  | None -> styles
+  | Some payload ->
+    match Angstrom.parse_only css_parser (`String payload) with
+    | Result.Ok style ->
+        List.fold_left
+          (fun styles s ->
+            match s with
+            | `At ("import", `Line line) -> (
+              match Angstrom.parse_only import_url (`String line) with
+              | Result.Ok url ->
+                  let payload = state.load (stack, url) in
+                  parse_style_aux state (url :: stack) styles payload
+              | _ ->
+                  if state.verbose then
+                    "Can't parse import line: '" ^ line ^ "'" |> prerr_endline ;
+                  styles )
+            | _ -> s :: styles)
+          styles style
+    | _ ->
+        if state.verbose then "Can't parse style:'" ^ payload ^ "'"
+          |> prerr_endline ;
+        styles
+
+
+let parse_one_style state stack styles payload =
+  parse_style_aux state stack styles payload
+
+
 let select_internal_styles html = Soup.(html $$ "style")
 
-let load_internal_style html styles =
+let load_internal_style state html styles =
   let open Soup in
   select_internal_styles html
-  |> fold (fun s n -> leaf_text n |> parse_one_style s) styles
+  |> fold (fun s n -> leaf_text n |> parse_one_style state [] s) styles
 
 
 let select_external_styles html = Soup.(html $$ "link[rel=stylesheet]")
@@ -103,7 +155,10 @@ let get_external_styles html =
 
 
 let load_external_style state links style =
-  List.fold_left (fun s l -> state.load l |> parse_one_style s) style links
+  List.fold_left
+    (fun s ((stack, url) as l) ->
+      state.load l |> parse_one_style state (url :: stack) s)
+    style links
 
 
 let add_style styles node =
@@ -198,12 +253,12 @@ let clean state html =
 let inline_css ?(verbose= false) ?(clean_class= true) ?(load= fun _ -> None)
     html =
   let open Soup in
-  let state = {load; clean_class} in
+  let state = {load; clean_class; verbose} in
   let html = parse html in
   let ext_styles = get_external_styles html in
   let style = [] in
   let style = load_external_style state ext_styles style in
-  let style = load_internal_style html style in
+  let style = load_internal_style state html style in
   (* style *)
   html |> apply_style ~verbose style |> clean state |> pretty_print
 

@@ -79,3 +79,23 @@ let _ = test_one "doctype.html"
 (* failed ?? *)
 let _ = test_one "empty.html"
 *)
+
+let _ =
+  let src_dir = "data/" in
+  let file = "TextFormattingRules" in
+  let load (_, file) =
+    "Loading " ^ file |> print_endline ;
+    match List.rev (Str.split (Str.regexp "/") file) with
+    | file :: _ -> Some (Soup.read_file (src_dir ^ file))
+    | _ -> None
+  in
+  let h = src_dir ^ file |> Soup.read_file |> inline_css ~verbose:true ~load in
+  let open Soup in
+  let html = Soup.parse h in
+  html $$ "link" |> iter delete ;
+  html $$ "script" |> iter delete ;
+  html $$ "meta" |> iter delete ;
+  html $$ "base" |> iter delete ;
+  let h = Soup.pretty_print html in
+  write_result (file ^ ".html") h
+
