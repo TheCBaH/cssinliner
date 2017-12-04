@@ -78,8 +78,18 @@ let _ = test_one "doctype.html"
 
 (* failed ?? *)
 let _ = test_one "empty.html"
-*)
-
+ *)
+(*
+let _ =
+  let src_dir = "data/" in
+  let open Soup in
+  let css = src_dir ^ "colors.css" |> read_file in
+  let open Angstrom in
+  let _css_parser = css_parser >>| List.rev in
+  Angstrom.parse_only css_parser (`String css)
+(*  parse_one_style empty_state [] [] (Some css) *)
+ *)
+(*
 let _ =
   let src_dir = "data/" in
   let file = "TextFormattingRules" in
@@ -98,4 +108,4 @@ let _ =
   html $$ "base" |> iter delete ;
   let h = Soup.pretty_print html in
   write_result (file ^ ".html") h
-
+ *)
