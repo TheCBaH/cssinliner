@@ -3,7 +3,10 @@
 #require "angstrom";;
 #require "lambdasoup";;
 #require "str";;
+#require "ppx_sexp_conv";;
  *)
+
+open Sexplib.Std
 
 let string_of_rev_list str =
   let b = Buffer.create 7 in
@@ -77,6 +80,24 @@ let url_resource =
   <* wspace <* char ')'
 
 
+type css_at_payload = Block of string | Line of string [@@deriving sexp]
+
+type css_value_atom =
+  | Any of string
+  | Identifier of string
+  | String of char * string
+  | Url of string
+  [@@deriving sexp]
+
+type css =
+  | At of string * css_at_payload
+  | Rule of string list * (string * css_value_atom list) list
+  [@@deriving sexp]
+
+module Css = struct
+  type t = css list [@@deriving sexp]
+end
+
 (*  4.1.1 Tokenization *)
 let declaration =
   let open Angstrom in
@@ -84,7 +105,7 @@ let declaration =
   let capture_quoted_string sep =
     char sep
     *> scan_string escaped_string_scanner_seed (escaped_string_scanner sep)
-    <* char sep >>| fun s -> `String (sep, s)
+    <* char sep >>| fun s -> String (sep, s)
   in
   let quoted_string =
     capture_quoted_string '"' <|> capture_quoted_string '\''
@@ -94,9 +115,9 @@ let declaration =
       ( wspace
         *> choice
              [ quoted_string
-             ; (url_resource >>| fun s -> `Url s)
-             ; (identifier >>| fun s -> `Identifier s)
-             ; (any >>| fun s -> `Any s) ]
+             ; (url_resource >>| fun s -> Url s)
+             ; (identifier >>| fun s -> Identifier s)
+             ; (any >>| fun s -> Any s) ]
       <* wspace )
   in
   lift2
@@ -121,12 +142,12 @@ let single_quote_string s =
 let declaration_to_string d =
   d
   |> List.map (function
-       | `String (sep, s) ->
+       | String (sep, s) ->
            let sep = String.make 1 sep in
            sep ^ s ^ sep
-       | `Url url -> "url('" ^ single_quote_string url ^ "')"
-       | `Identifier x -> x
-       | `Any x -> x )
+       | Url url -> "url('" ^ single_quote_string url ^ "')"
+       | Identifier x -> x
+       | Any x -> x )
   |> String.concat " "
 
 
@@ -168,10 +189,10 @@ let css_parser =
   let at_rule =
     char '@'
     *> lift3
-         (fun id () block -> `At (id, block))
+         (fun id () block -> At (id, block))
          id wspace
-         ( lift (fun b -> `Block (skip_trailwspace b)) raw_block
-         <|> lift (fun l -> `Line l) semicolon_line )
+         ( lift (fun b -> Block (skip_trailwspace b)) raw_block
+         <|> lift (fun l -> Line l) semicolon_line )
   in
   let rule =
     take_while (function ',' | '{' | ';' | '}' -> false | _ -> true)
@@ -179,7 +200,7 @@ let css_parser =
   let rules = sep_by1 (char ',' *> wspace) rule in
   let selector = wspace *> rules in
   let rule =
-    lift2 (fun selector block -> `Rule (selector, block)) selector block
+    lift2 (fun selector block -> Rule (selector, block)) selector block
   in
   many (wspace *> (at_rule <|> rule)) <* wspace <* end_of_input
 
@@ -208,7 +229,7 @@ let rec parse_style_aux state stack styles payload =
         List.fold_left
           (fun styles s ->
             match s with
-            | `At ("import", `Line line) -> (
+            | At ("import", Line line) -> (
               match Angstrom.parse_only import_url (`String line) with
               | Result.Ok url ->
                   let payload = state.load (stack, url) in
@@ -323,7 +344,7 @@ let apply_style state style html =
   let open Soup in
   List.iter
     (function
-        | `Rule (selector, styles) ->
+        | Rule (selector, styles) ->
             selector
             |> List.iter (fun selector ->
                    if not
@@ -335,8 +356,8 @@ let apply_style state style html =
                          if state.verbose then
                            "Can't handle selector: '" ^ selector ^ "'"
                            |> prerr_endline ;
-                         if false then raise exn ;
-                         None
+                         raise exn
+                       (* None *)
                      in
                      match selected with
                      | Some selected ->
@@ -360,7 +381,7 @@ let clean state html =
   html
 
 
-let inline_css ?(verbose= false) ?(apply_table= true) ?(clean_class= true)
+let inline_css ?(verbose= false) ?(apply_table= false) ?(clean_class= true)
     ?(load= fun _ -> None) html =
   let open Soup in
   let state = {load; clean_class; verbose; apply_table} in

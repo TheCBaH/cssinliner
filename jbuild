@@ -8,4 +8,5 @@
     (angstrom
      str
      lambdasoup))
+     (preprocess (pps (ppx_sexp_conv)))
   ))

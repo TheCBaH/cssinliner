@@ -1,5 +1,35 @@
 open Cssinliner
 
+let css_tests = ["comma-attribute"; "supports"]
+
+let css_tests2 =
+  [ "alpha"
+  ; "cascading"
+  ; "character-entities"
+  ; "class+id"
+  ; "class"
+  ; "css-quotes"
+  ; "direct-descendents"
+  ; "empty"
+  ; "file"
+  ; "id"
+  ; "identical-important"
+  ; "ignore-pseudos"
+  ; "important"
+  ; "malformed"
+  ; "media"
+  ; "normalize"
+  ; "preserve-events"
+  ; "regression-media"
+  ; "regression-selector-newline"
+  ; "remove-html-selectors"
+  ; "specificity"
+  ; "style-preservation"
+  ; "tag"
+  ; "two_styles"
+  ; "yui-reset" ]
+
+
 let tests =
   [ "alpha.html"
   ; "cascading.html"
@@ -43,9 +73,32 @@ let src_dir = root ^ "inline-css/test/fixtures/"
 
 let dst_dir = root ^ "results/"
 
+let css_src_dir = root ^ "css/test/cases/"
+
 let write_result file str =
   let ch_out = dst_dir ^ file |> open_out in
   output_string ch_out str ; close_out ch_out
+
+
+let one_css_test get_input test =
+  "Testing: " ^ test |> print_endline ;
+  let css = get_input test |> Soup.read_file in
+  write_result (test ^ ".sexp")
+    ( match Angstrom.parse_only css_parser (`String css) with
+    | Result.Ok style -> Css.sexp_of_t style |> Sexplib.Sexp.to_string_hum
+    | Result.Error x ->
+        test ^ " Failed with:" ^ x |> prerr_endline ;
+        "" )
+
+
+let _ =
+  List.iter
+    (one_css_test (fun test -> css_src_dir ^ test ^ "/input.css"))
+    css_tests
+
+
+let _ =
+  List.iter (one_css_test (fun test -> src_dir ^ test ^ ".css")) css_tests2
 
 
 let test_one ~clean_class file =
@@ -59,7 +112,8 @@ let test_one ~clean_class file =
         "Skipping '" ^ file ^ "'" |> print_endline ;
         None
   in
-  src_dir ^ file |> read_file |> inline_css ~verbose:true ~clean_class ~load
+  src_dir ^ file |> read_file
+  |> inline_css ~verbose:true ~apply_table:true ~clean_class ~load
   |> write_result file
 
 
@@ -109,3 +163,37 @@ let _ =
   let h = Soup.pretty_print html in
   write_result (file ^ ".html") h
  *)
+(*
+let _ =
+  let s = "  /*  */ " in
+    Angstrom.parse_only wspace (`String s)
+
+
+let _ =
+  let open Angstrom in
+  let rule =
+    wspace *> take_while (function ',' | '{' | ';' | '}' -> false | _ -> true)
+  in
+  let semicolon_line =
+    wspace *> take_while (function ';' | '{' | '}' -> false | _ -> true)
+    <* char ';' <* wspace
+  in
+  let block = char '{' *> wspace *> many semicolon_line <* wspace <* char '}' in
+  let s = "html body {
+        font-size:104%; /* to change the site's font size, change #patternPage below */
+        voice-family:\"\\\"}\\\"\";
+        voice-family:inherit;
+        font-size:small;
+           }" in
+  let s_ = "html { f:a; }" in
+    Angstrom.parse_only css_parser (`String s)
+
+let _ =
+  let s = "
+th {
+        line-height:1.15em;
+}
+" in
+    Angstrom.parse_only css_parser (`String s)
+
+   *)

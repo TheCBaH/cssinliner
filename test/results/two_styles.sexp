@@ -1,0 +1,1 @@
+((Rule ("strong ") ((color ((Identifier blue))))))
