@@ -1,1 +1,1 @@
-((Rule ("p ") ((background ((Url /woot))))))
+((Rule ((selectors ("p ")) (ruleset ((background ((Url /woot))))))))

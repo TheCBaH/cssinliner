@@ -1,1 +1,1 @@
-((Rule ("strong ") ((color ((Identifier blue))))))
+((Rule ((selectors ("strong ")) (ruleset ((color ((Identifier blue))))))))

@@ -1,11 +1,25 @@
-((Rule ("#wrap #a ") ((color ((Identifier red)))))
- (Rule ("#wrap a ") ((color ((Any #000)))))
- (Rule ("#a ") ((color ((Any #00f)))))
- (Rule ("div[a=b] .wrap div ") ((display ((Identifier block)))))
- (Rule ("#wrap .wrap ") ((display ((Identifier inline-block)))))
- (Rule ("#wrap div.wrap #a ") ((background ((Any #000)))))
- (Rule ("#wrap[a=b] div.wrap #a ") ((background ((Identifier green)))))
- (Rule ("#wrap[a=c] div.wrap #a ") ((background ((Any #00f)))))
- (Rule ("#wrap .wrap #a ") ((background ((Any #f00)))))
- (Rule ("#wrap .wrap #a ") ((border-color ((Identifier green)))))
- (Rule ("div #wrap-2 #a ") ((border-color ((Any #008000))))))
+((Rule ((selectors ("#wrap #a ")) (ruleset ((color ((Identifier red)))))))
+ (Rule ((selectors ("#wrap a ")) (ruleset ((color ((Any #000)))))))
+ (Rule ((selectors ("#a ")) (ruleset ((color ((Any #00f)))))))
+ (Rule
+  ((selectors ("div[a=b] .wrap div "))
+   (ruleset ((display ((Identifier block)))))))
+ (Rule
+  ((selectors ("#wrap .wrap "))
+   (ruleset ((display ((Identifier inline-block)))))))
+ (Rule
+  ((selectors ("#wrap div.wrap #a ")) (ruleset ((background ((Any #000)))))))
+ (Rule
+  ((selectors ("#wrap[a=b] div.wrap #a "))
+   (ruleset ((background ((Identifier green)))))))
+ (Rule
+  ((selectors ("#wrap[a=c] div.wrap #a "))
+   (ruleset ((background ((Any #00f)))))))
+ (Rule
+  ((selectors ("#wrap .wrap #a ")) (ruleset ((background ((Any #f00)))))))
+ (Rule
+  ((selectors ("#wrap .wrap #a "))
+   (ruleset ((border-color ((Identifier green)))))))
+ (Rule
+  ((selectors ("div #wrap-2 #a "))
+   (ruleset ((border-color ((Any #008000))))))))

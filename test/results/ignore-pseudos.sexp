@@ -1,3 +1,8 @@
-((Rule ("a ") ((text-decoration ((Identifier underline)))))
- (Rule ("a:hover ") ((text-decoration ((Identifier none)))))
- (Rule (a:link "a:visited ") ((font-weight ((Identifier bold))))))
+((Rule
+  ((selectors ("a ")) (ruleset ((text-decoration ((Identifier underline)))))))
+ (Rule
+  ((selectors ("a:hover "))
+   (ruleset ((text-decoration ((Identifier none)))))))
+ (Rule
+  ((selectors (a:link "a:visited "))
+   (ruleset ((font-weight ((Identifier bold))))))))

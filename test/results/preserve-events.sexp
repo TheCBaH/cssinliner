@@ -1,1 +1,1 @@
-((Rule ("p ") ((color ((Identifier red))))))
+((Rule ((selectors ("p ")) (ruleset ((color ((Identifier red))))))))

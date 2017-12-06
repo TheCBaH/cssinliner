@@ -1,1 +1,1 @@
-((Rule ("body ") ((padding ((Any 0))))))
+((Rule ((selectors ("body ")) (ruleset ((padding ((Any 0))))))))

@@ -80,8 +80,6 @@ let url_resource =
   <* wspace <* char ')'
 
 
-type css_at_payload = Block of string | Line of string [@@deriving sexp]
-
 type css_value_atom =
   | Any of string
   | Identifier of string
@@ -89,9 +87,20 @@ type css_value_atom =
   | Url of string
   [@@deriving sexp]
 
+type css_rule =
+  {selectors: string list; ruleset: (string * css_value_atom list) list}
+  [@@deriving sexp]
+
+type css_at_payload =
+  | Block of string
+  | Compound of css_rule list
+  | Line of string
+  [@@deriving sexp]
+
 type css =
-  | At of string * css_at_payload
-  | Rule of string list * (string * css_value_atom list) list
+  | At of string * css_value_atom list * css_at_payload
+  | Import of string
+  | Rule of css_rule
   [@@deriving sexp]
 
 module Css = struct
@@ -99,7 +108,7 @@ module Css = struct
 end
 
 (*  4.1.1 Tokenization *)
-let declaration =
+let css_any =
   let open Angstrom in
   let any = take_while1 (function ';' | '{' | '}' -> false | _ -> true) in
   let capture_quoted_string sep =
@@ -110,20 +119,22 @@ let declaration =
   let quoted_string =
     capture_quoted_string '"' <|> capture_quoted_string '\''
   in
-  let value =
-    many
-      ( wspace
-        *> choice
-             [ quoted_string
-             ; (url_resource >>| fun s -> Url s)
-             ; (identifier >>| fun s -> Identifier s)
-             ; (any >>| fun s -> Any s) ]
-      <* wspace )
-  in
+  many
+    ( wspace
+      *> choice
+           [ quoted_string
+           ; (url_resource >>| fun s -> Url s)
+           ; (identifier >>| fun s -> Identifier s)
+           ; (any >>| fun s -> Any s) ]
+    <* wspace )
+
+
+let declaration =
+  let open Angstrom in
   lift2
     (fun id value -> (id, value))
     (wspace *> identifier <* wspace <* char ':')
-    value
+    css_any
 
 
 let single_quote_string s =
@@ -186,26 +197,35 @@ let css_parser =
     try Str.search_forward re_trailwspace str 0 |> String.sub str 0
     with Not_found -> str
   in
+  let selector =
+    take_while (function ',' | '{' | ';' | '}' -> false | _ -> true)
+  in
+  let selectors = wspace *> sep_by1 (char ',' *> wspace) selector in
+  let styles =
+    lift2 (fun selectors ruleset -> {selectors; ruleset}) selectors block
+  in
+  let compound_block =
+    char '{' *> many (wspace *> styles) <* wspace <* char '}'
+  in
   let at_rule =
     char '@'
     *> lift3
-         (fun id () block -> At (id, block))
-         id wspace
-         ( lift (fun b -> Block (skip_trailwspace b)) raw_block
+         (fun id any block -> At (id, any, block))
+         (id <* wspace) css_any
+         ( lift (fun l -> Compound l) compound_block
+         <|> lift (fun b -> Block (skip_trailwspace b)) raw_block
          <|> lift (fun l -> Line l) semicolon_line )
   in
-  let rule =
-    take_while (function ',' | '{' | ';' | '}' -> false | _ -> true)
+  let import =
+    char '@' *> string "import" *> wspace
+    *> (parse_quoted_string <|> url_resource)
+    >>| fun s -> Import s
   in
-  let rules = sep_by1 (char ',' *> wspace) rule in
-  let selector = wspace *> rules in
-  let rule =
-    lift2 (fun selector block -> Rule (selector, block)) selector block
+  let css_parser =
+    many (wspace *> (import <|> at_rule <|> lift (fun x -> Rule x) styles))
   in
-  many (wspace *> (at_rule <|> rule)) <* wspace <* end_of_input
+  css_parser <* wspace <* end_of_input
 
-
-let import_url = Angstrom.(wspace *> (parse_quoted_string <|> url_resource))
 
 type state =
   { load: string list * string -> string option
@@ -229,15 +249,9 @@ let rec parse_style_aux state stack styles payload =
         List.fold_left
           (fun styles s ->
             match s with
-            | At ("import", Line line) -> (
-              match Angstrom.parse_only import_url (`String line) with
-              | Result.Ok url ->
-                  let payload = state.load (stack, url) in
-                  parse_style_aux state (url :: stack) styles payload
-              | _ ->
-                  if state.verbose then
-                    "Can't parse import line: '" ^ line ^ "'" |> prerr_endline ;
-                  styles )
+            | Import url ->
+                let payload = state.load (stack, url) in
+                parse_style_aux state (url :: stack) styles payload
             | _ -> s :: styles)
           styles style
     | _ ->
@@ -332,7 +346,22 @@ let add_style state styles node =
 
 let re_pseudos =
   ".*\\("
-  ^ ( ["hover"; "active"; "focus"; "visited"; "link"]
+  ^ ( [ "active"
+      ; "after"
+      ; "before"
+      ; "checked"
+      ; "disabled"
+      ; "enabled"
+      ; "first-letter"
+      ; "first-line"
+      ; "focus"
+      ; "hover"
+      ; "indeterminate"
+      ; "lang"
+      ; "link"
+      ; "selection"
+      ; "target"
+      ; "visited" ]
     |> List.map (fun s -> ":" ^ s) |> String.concat "\\|" )
   ^ "\\).*"
   |> Str.regexp
@@ -344,8 +373,8 @@ let apply_style state style html =
   let open Soup in
   List.iter
     (function
-        | Rule (selector, styles) ->
-            selector
+        | Rule {selectors; ruleset} ->
+            selectors
             |> List.iter (fun selector ->
                    if not
                         ( Str.string_match re_pseudos selector 0
@@ -361,7 +390,7 @@ let apply_style state style html =
                      in
                      match selected with
                      | Some selected ->
-                         selected |> iter (add_style state styles) ;
+                         selected |> iter (add_style state ruleset) ;
                          if false then "applied style to: '" ^ selector ^ "'"
                            |> print_endline
                      | None -> ()

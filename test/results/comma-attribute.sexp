@@ -1,16 +1,23 @@
-((Rule (".foo[bar=\"baz" "quz\"] ") ((foobar ((Any 123)))))
- (Rule (.bar "#bar[baz=\"qux" "foo\"]" "#qux ") ((foobar ((Any 456)))))
+((Rule
+  ((selectors (".foo[bar=\"baz" "quz\"] ")) (ruleset ((foobar ((Any 123)))))))
  (Rule
-  (".baz[qux=\"" "foo\"]" ".baz[qux=\"foo" "\"]" ".baz[qux=\"foo" bar
-   "baz\"]" ".baz[qux=\"" foo bar baz "\"]" ".baz[qux=\" " "foo " "bar "
-   "baz " "\"] ")
-  ((foobar ((Any 789)))))
+  ((selectors (.bar "#bar[baz=\"qux" "foo\"]" "#qux "))
+   (ruleset ((foobar ((Any 456)))))))
  (Rule
-  (.qux[foo='bar baz'] ".qux[bar=\"baz" "foo\"]" "#qux[foo=\"foobar\"]"
-   #qux[foo=' bar baz "'] ")
-  ((foobar ((Any 012)))))
+  ((selectors
+    (".baz[qux=\"" "foo\"]" ".baz[qux=\"foo" "\"]" ".baz[qux=\"foo" bar
+     "baz\"]" ".baz[qux=\"" foo bar baz "\"]" ".baz[qux=\" " "foo " "bar "
+     "baz " "\"] "))
+   (ruleset ((foobar ((Any 789)))))))
  (Rule
-  ("#foo[foo=\"\"]" "#foo[bar=\" \"]" "#foo[bar=\"" "\"]" "#foo[bar=\"" "\"]"
-   "#foo[bar=\" " "\"]" "#foo[bar=\" " "\"]" #foo[baz=''] "#foo[qux=' ']"
-   #foo[qux=' '] #foo[qux=' '] "#foo[qux=' " '] "#foo[qux=' " "'] ")
-  ((foobar ((Any 345))))))
+  ((selectors
+    (.qux[foo='bar baz'] ".qux[bar=\"baz" "foo\"]" "#qux[foo=\"foobar\"]"
+     #qux[foo=' bar baz "'] "))
+   (ruleset ((foobar ((Any 012)))))))
+ (Rule
+  ((selectors
+    ("#foo[foo=\"\"]" "#foo[bar=\" \"]" "#foo[bar=\"" "\"]" "#foo[bar=\""
+     "\"]" "#foo[bar=\" " "\"]" "#foo[bar=\" " "\"]" #foo[baz='']
+     "#foo[qux=' ']" #foo[qux=' '] #foo[qux=' '] "#foo[qux=' " ']
+     "#foo[qux=' " "'] "))
+   (ruleset ((foobar ((Any 345))))))))

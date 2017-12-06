@@ -1,1 +1,1 @@
-((Rule (".woot ") ((overflow ((Identifier hidden))))))
+((Rule ((selectors (".woot ")) (ruleset ((overflow ((Identifier hidden))))))))

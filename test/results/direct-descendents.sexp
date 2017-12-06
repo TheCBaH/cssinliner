@@ -1,2 +1,2 @@
-((Rule ("p em ") ((background ((Identifier blue)))))
- (Rule ("p > em ") ((color ((Identifier red))))))
+((Rule ((selectors ("p em ")) (ruleset ((background ((Identifier blue)))))))
+ (Rule ((selectors ("p > em ")) (ruleset ((color ((Identifier red))))))))

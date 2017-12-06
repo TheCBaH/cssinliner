@@ -1,1 +1,1 @@
-((Rule ("#test ") ((display ((Identifier none))))))
+((Rule ((selectors ("#test ")) (ruleset ((display ((Identifier none))))))))
