@@ -104,10 +104,6 @@ type css =
   | NotParsed of string
   [@@deriving sexp]
 
-module Css = struct
-  type t = css list [@@deriving sexp]
-end
-
 (*  4.1.1 Tokenization *)
 let css_any =
   let open Angstrom in
@@ -237,6 +233,12 @@ let css_parser =
   css_parser <* wspace <* end_of_input
 
 
+module Css = struct
+  type t = css list [@@deriving sexp]
+
+  let of_string s = Angstrom.parse_only css_parser (`String s)
+end
+
 type state =
   { load: string list * string -> string option
   ; clean_class: bool
@@ -264,8 +266,9 @@ let rec parse_style_aux state stack styles payload =
                 parse_style_aux state (url :: stack) styles payload
             | _ -> s :: styles)
           styles style
-    | _ ->
-        if state.verbose then "Can't parse style:'" ^ payload ^ "'"
+    | Result.Error error ->
+        if state.verbose then
+          "Can't parse style:'" ^ payload ^ "' (" ^ error ^ ")"
           |> prerr_endline ;
         styles
 
@@ -377,7 +380,7 @@ let re_pseudos =
   |> Str.regexp
 
 
-let re_special = Str.regexp ".*::-"
+let re_special = Str.regexp ".*\\(::-\\|\\\\\\)"
 
 let apply_style state style html =
   let open Soup in

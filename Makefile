@@ -11,6 +11,7 @@ clean:
 format:
 	ocamlformat --inplace cssinliner.ml
 	ocamlformat --inplace test/test.ml
+	ocamlformat --inplace inliner/inliner.ml
 
 test:
 	jbuilder runtest
