@@ -99,8 +99,9 @@ type css_at_payload =
 
 type css =
   | At of string * css_value_atom list * css_at_payload
-  | Import of string
+  | Import of string * css_value_atom list
   | Rule of css_rule
+  | NotParsed of string
   [@@deriving sexp]
 
 module Css = struct
@@ -218,11 +219,20 @@ let css_parser =
   in
   let import =
     char '@' *> string "import" *> wspace
-    *> (parse_quoted_string <|> url_resource)
-    >>| fun s -> Import s
+    *> lift2
+         (fun url qual -> Import (url, qual))
+         (parse_quoted_string <|> url_resource)
+         (wspace *> css_any)
+    <* wspace <* char ';'
+  in
+  let not_parsed =
+    take_while1 (function '}' -> false | _ -> true)
+    <* (char '}' >>| ignore <|> end_of_input) >>| fun s -> NotParsed s
   in
   let css_parser =
-    many (wspace *> (import <|> at_rule <|> lift (fun x -> Rule x) styles))
+    many
+      ( wspace
+      *> (import <|> at_rule <|> (styles >>| fun s -> Rule s) <|> not_parsed) )
   in
   css_parser <* wspace <* end_of_input
 
@@ -249,7 +259,7 @@ let rec parse_style_aux state stack styles payload =
         List.fold_left
           (fun styles s ->
             match s with
-            | Import url ->
+            | Import (url, []) ->
                 let payload = state.load (stack, url) in
                 parse_style_aux state (url :: stack) styles payload
             | _ -> s :: styles)
