@@ -256,7 +256,7 @@ let rec parse_style_aux state stack styles payload =
   match payload with
   | None -> styles
   | Some payload ->
-    match Angstrom.parse_only css_parser (`String payload) with
+    match Css.of_string payload with
     | Result.Ok style ->
         List.fold_left
           (fun styles s ->
@@ -382,7 +382,17 @@ let re_pseudos =
 
 let re_special = Str.regexp ".*\\(::-\\|\\\\\\)"
 
-let apply_style state style html =
+module SoupNode = struct
+  type t = Soup.element Soup.node
+
+  let equal s s' = s == s'
+
+  let hash = Hashtbl.seeded_hash
+end
+
+module NodeHash = Hashtbl.MakeSeeded (SoupNode)
+
+let assign_style state style hash html =
   let open Soup in
   List.iter
     (function
@@ -402,16 +412,26 @@ let apply_style state style html =
                        (* None *)
                      in
                      match selected with
-                     | Some selected ->
-                         selected |> iter (add_style state ruleset) ;
-                         if false then "applied style to: '" ^ selector ^ "'"
-                           |> print_endline
                      | None -> ()
+                     | Some selected ->
+                         selected
+                         |> iter (fun node ->
+                                try
+                                  let rules = NodeHash.find hash node in
+                                  rules := ruleset :: !rules
+                                with Not_found ->
+                                  NodeHash.add hash node (ref [ruleset]) )
                    else if state.verbose then
                      "Skipping selector: '" ^ selector ^ "'" |> print_endline )
         | _ -> ())
-    style ;
-  html
+    style
+
+
+let apply_style state hash =
+  NodeHash.iter
+    (fun node ruleset ->
+      List.iter (fun rule -> add_style state rule node) (List.rev !ruleset))
+    hash
 
 
 let clean state html =
@@ -419,8 +439,7 @@ let clean state html =
   select_internal_styles html |> iter delete ;
   select_external_styles html |> iter delete ;
   if state.clean_class then html $$ "*"
-    |> iter (fun n -> delete_attribute "class" n ; delete_attribute "id" n) ;
-  html
+    |> iter (fun n -> delete_attribute "class" n ; delete_attribute "id" n)
 
 
 let inline_css ?(verbose= false) ?(apply_table= false) ?(clean_class= true)
@@ -433,5 +452,9 @@ let inline_css ?(verbose= false) ?(apply_table= false) ?(clean_class= true)
   let style = load_external_style state ext_styles style in
   let style = load_internal_style state html style in
   (* style *)
-  html |> apply_style state style |> clean state |> pretty_print
+  let hash = NodeHash.create 17 in
+  assign_style state style hash html ;
+  apply_style state hash ;
+  clean state html ;
+  pretty_print html
 

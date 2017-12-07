@@ -132,7 +132,7 @@ let one_css_test get_input test =
   "Testing: " ^ test |> print_endline ;
   let css = get_input test |> Soup.read_file in
   write_result (test ^ ".sexp")
-    ( match Angstrom.parse_only css_parser (`String css) with
+    ( match Css.of_string css with
     | Result.Ok style -> Css.sexp_of_t style |> Sexplib.Sexp.to_string_hum
     | Result.Error x ->
         test ^ " Failed with:" ^ x |> prerr_endline ;
