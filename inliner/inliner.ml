@@ -62,8 +62,7 @@ let _ =
   match get true uri with
   | Some s ->
       let open Soup in
-      let h = inline_css ~verbose:true ~load s in
-      let html = Soup.parse h in
+      let html = Soup.parse s |> inline_css ~verbose:true ~load in
       html $$ "link" |> iter delete ;
       html $$ "script" |> iter delete ;
       html $$ "meta" |> iter delete ;

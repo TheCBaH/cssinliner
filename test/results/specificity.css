@@ -1,0 +1,43 @@
+#wrap #a  {
+        color: red
+}
+
+#wrap a  {
+        color: #000
+}
+
+#a  {
+        color: #00f
+}
+
+div[a=b] .wrap div  {
+        display: block
+}
+
+#wrap .wrap  {
+        display: inline-block
+}
+
+#wrap div.wrap #a  {
+        background: #000
+}
+
+#wrap[a=b] div.wrap #a  {
+        background: green
+}
+
+#wrap[a=c] div.wrap #a  {
+        background: #00f
+}
+
+#wrap .wrap #a  {
+        background: #f00
+}
+
+#wrap .wrap #a  {
+        border-color: green
+}
+
+div #wrap-2 #a  {
+        border-color: #008000
+}

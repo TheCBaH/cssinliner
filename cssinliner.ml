@@ -87,9 +87,42 @@ type css_value_atom =
   | Url of string
   [@@deriving sexp]
 
+let css_value_atom_to_string = function
+  | Any s -> s
+  | Identifier s -> s
+  | String (c, s) ->
+      let buf = 2 + String.length s |> Buffer.create in
+      Buffer.add_char buf c ;
+      Buffer.add_string buf s ;
+      Buffer.add_char buf c ;
+      Buffer.contents buf
+  | Url s -> "Url('" ^ s ^ "')"
+
+
 type css_rule =
   {selectors: string list; ruleset: (string * css_value_atom list) list}
   [@@deriving sexp]
+
+let css_rule_to_string ?(indent= "") t =
+  let buf = Buffer.create 127 in
+  Buffer.add_string buf indent ;
+  String.concat ", " t.selectors |> Buffer.add_string buf ;
+  Buffer.add_string buf " {\n" ;
+  List.iter
+    (fun (p, v) ->
+      Buffer.add_string buf indent ;
+      Buffer.add_string buf "    " ;
+      Buffer.add_string buf "    " ;
+      Buffer.add_string buf p ;
+      Buffer.add_char buf ':' ;
+      Buffer.add_char buf ' ' ;
+      List.map css_value_atom_to_string v |> String.concat " " |> Buffer.add_string buf;
+      Buffer.add_char buf '\n')
+    t.ruleset ;
+  Buffer.add_string buf indent ;
+  Buffer.add_string buf "}\n" ;
+  Buffer.contents buf
+
 
 type css_at_payload =
   | Block of string
@@ -97,12 +130,49 @@ type css_at_payload =
   | Line of string
   [@@deriving sexp]
 
+let css_at_payload_to_string = function
+  | Block s -> "{\n" ^ s ^ "\n}"
+  | Compound c ->
+      let buf = Buffer.create 127 in
+      Buffer.add_string buf "{\n" ;
+      List.iter
+        (fun rule ->
+          let indent = "    " in
+          css_rule_to_string ~indent rule |> Buffer.add_string buf)
+        c ;
+      Buffer.add_string buf "}\n" ;
+      Buffer.contents buf
+  | Line l -> l ^ ";\n"
+
+
 type css =
   | At of string * css_value_atom list * css_at_payload
   | Import of string * css_value_atom list
   | Rule of css_rule
   | NotParsed of string
   [@@deriving sexp]
+
+let css_to_string = function
+  | At (n, v, p) ->
+      let buf = Buffer.create 127 in
+      Buffer.add_char buf '@' ;
+      Buffer.add_string buf n ;
+      Buffer.add_char buf ' ' ;
+      List.map css_value_atom_to_string v |> String.concat " "
+      |> Buffer.add_string buf ;
+      Buffer.add_char buf ' ' ;
+      css_at_payload_to_string p |> Buffer.add_string buf ;
+      Buffer.contents buf
+  | Import (n, v) ->
+      let buf = Buffer.create 127 in
+      Buffer.add_string buf "@import " ;
+      Buffer.add_string buf n ;
+      List.map css_value_atom_to_string v |> String.concat " "
+      |> Buffer.add_string buf ;
+      Buffer.contents buf
+  | Rule r -> css_rule_to_string r
+  | NotParsed s -> s
+
 
 (*  4.1.1 Tokenization *)
 let css_any =
@@ -237,6 +307,8 @@ module Css = struct
   type t = css list [@@deriving sexp]
 
   let of_string s = Angstrom.parse_only css_parser (`String s)
+
+  let to_string t = List.map css_to_string t |> String.concat "\n"
 end
 
 type state =
@@ -446,7 +518,6 @@ let inline_css ?(verbose= false) ?(apply_table= false) ?(clean_class= true)
     ?(load= fun _ -> None) html =
   let open Soup in
   let state = {load; clean_class; verbose; apply_table} in
-  let html = parse html in
   let ext_styles = get_external_styles html in
   let style = [] in
   let style = load_external_style state ext_styles style in
@@ -456,5 +527,5 @@ let inline_css ?(verbose= false) ?(apply_table= false) ?(clean_class= true)
   assign_style state style hash html ;
   apply_style state hash ;
   clean state html ;
-  pretty_print html
+  html
 

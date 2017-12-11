@@ -131,12 +131,15 @@ let write_result file str =
 let one_css_test get_input test =
   "Testing: " ^ test |> print_endline ;
   let css = get_input test |> Soup.read_file in
-  write_result (test ^ ".sexp")
-    ( match Css.of_string css with
-    | Result.Ok style -> Css.sexp_of_t style |> Sexplib.Sexp.to_string_hum
-    | Result.Error x ->
-        test ^ " Failed with:" ^ x |> prerr_endline ;
-        "" )
+  match Css.of_string css with
+  | Result.Ok style ->
+      Css.sexp_of_t style |> Sexplib.Sexp.to_string_hum
+      |> write_result (test ^ ".sexp") ;
+      Css.to_string style |> write_result (test ^ ".css")
+  | Result.Error x ->
+      test ^ " Failed with:" ^ x |> prerr_endline ;
+      write_result (test ^ ".sexp") "" ;
+      write_result (test ^ ".css") ""
 
 
 let _ =
@@ -150,19 +153,18 @@ let _ =
 
 
 let test_one ~clean_class file =
-  let open Soup in
   "Testing: " ^ file |> print_endline ;
   let load (_, file) =
     let uri = Uri.of_string file in
     match Uri.host uri with
-    | None -> Some (read_file (src_dir ^ file))
+    | None -> Some (Soup.read_file (src_dir ^ file))
     | Some _ ->
         "Skipping '" ^ file ^ "'" |> print_endline ;
         None
   in
-  src_dir ^ file |> read_file
+  src_dir ^ file |> Soup.read_file |> Soup.parse
   |> inline_css ~verbose:true ~apply_table:true ~clean_class ~load
-  |> write_result file
+  |> Soup.pretty_print |> write_result file
 
 
 let _ =
@@ -208,7 +210,7 @@ let _ =
   html $$ "script" |> iter delete ;
   html $$ "meta" |> iter delete ;
   html $$ "base" |> iter delete ;
-  let h = Soup.pretty_print html in
+  let h = Soup.to_string html in
   write_result (file ^ ".html") h
  *)
 (*
