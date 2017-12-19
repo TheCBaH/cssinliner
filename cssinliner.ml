@@ -306,7 +306,7 @@ let css_parser =
 module Css = struct
   type t = css list [@@deriving sexp]
 
-  let of_string s = Angstrom.parse_only css_parser (`String s)
+  let of_string s = Angstrom.parse_string css_parser s
 
   let to_string t = List.map css_to_string t |> String.concat "\n"
 end
@@ -364,7 +364,7 @@ let get_external_styles html =
   select_external_styles html
   |> fold
        (fun l n ->
-         match attribute "href" n with None -> l | Some s -> ([], s) :: l)
+         match attribute "href" n with None -> l | Some s ->  s  :: l)
        []
   |> List.rev
 
@@ -408,11 +408,11 @@ let add_style state styles node =
     | subst ->
         List.filter
           (fun (k, d) ->
-            match List.assoc_opt k subst with
-            | Some k' ->
+            try
+                let k' = List.assoc k subst in
                 set_attribute k' (declaration_to_string d) node ;
-                false
-            | None -> true)
+                false;
+            with Not_found -> true)
           styles
   in
   match styles with
@@ -453,6 +453,7 @@ let re_pseudos =
 
 
 let re_special = Str.regexp ".*\\(::-\\|\\\\\\)"
+let re_partial_comments = Str.regexp ".*\\(\\(\\*/\\)\\|\\(/\\*\\)\\)"
 
 module SoupNode = struct
   type t = Soup.element Soup.node
@@ -473,15 +474,17 @@ let assign_style state style hash html =
             |> List.iter (fun selector ->
                    if not
                         ( Str.string_match re_pseudos selector 0
-                        || Str.string_match re_special selector 0 )
+                        || Str.string_match re_special selector 0
+                        || Str.string_match re_partial_comments selector 0
+                      )
                    then
                      let selected =
                        try Some (html $$ selector) with exn ->
-                         if state.verbose then
+                         if true || state.verbose then
                            "Can't handle selector: '" ^ selector ^ "'"
                            |> prerr_endline ;
-                         raise exn
-                       (* None *)
+                       (*  raise exn *)
+                       None
                      in
                      match selected with
                      | None -> ()
@@ -505,20 +508,25 @@ let apply_style state hash =
       List.iter (fun rule -> add_style state rule node) (List.rev !ruleset))
     hash
 
+let clean_class html =
+  let open Soup in
+  let clean n =
+    delete_attribute "class" n ;
+    delete_attribute "id" n in
+  html $$ "*" |> iter clean
 
 let clean state html =
   let open Soup in
   select_internal_styles html |> iter delete ;
   select_external_styles html |> iter delete ;
-  if state.clean_class then html $$ "*"
-    |> iter (fun n -> delete_attribute "class" n ; delete_attribute "id" n)
+  if state.clean_class then clean_class html
 
 
-let inline_css ?(verbose= false) ?(apply_table= false) ?(clean_class= true)
+let inline_css ?(verbose= false) ?(apply_table= false) ?(clean_class= false)
     ?(load= fun _ -> None) html =
   let open Soup in
   let state = {load; clean_class; verbose; apply_table} in
-  let ext_styles = get_external_styles html in
+  let ext_styles = get_external_styles html |> List.map (fun s -> [],s) in
   let style = [] in
   let style = load_external_style state ext_styles style in
   let style = load_internal_style state html style in
